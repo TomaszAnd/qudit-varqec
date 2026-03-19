@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+.DS_Store
+.pytest_cache/
+*.egg-info/
+CLAUDE.md
+papers/
+results/params/*.npz
+results/params/*.npy
+results/plots/*.png
+results/simulations/*.npz
+notebooks/.ipynb_checkpoints/
+notebooks/showcase_varqec.py
+*.rtf
+.venv/
+archive/
