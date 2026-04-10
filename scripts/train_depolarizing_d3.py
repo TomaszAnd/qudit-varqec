@@ -23,9 +23,9 @@ from pennylane import numpy as pnp
 from pennylane.optimize import AdamOptimizer
 import numpy as np
 
-from src.error_sets_factored import build_error_sets_factored
-from src.encoder import create_encoder
-from src.kl_loss_fast import kl_loss_detection_factored_minibatch, save_varqec_result
+from src.legacy.ququart_pipeline import build_error_sets_factored
+from src.legacy.ququart_pipeline import create_encoder
+from src.loss import kl_loss_detection_factored_minibatch, save_varqec_result
 
 
 MEM_LIMIT_GB = 12

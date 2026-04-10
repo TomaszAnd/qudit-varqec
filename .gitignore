@@ -5,12 +5,7 @@ __pycache__/
 *.egg-info/
 CLAUDE.md
 papers/
-results/params/*.npz
-results/params/*.npy
-results/plots/*.png
-results/simulations/*.npz
 notebooks/.ipynb_checkpoints/
-notebooks/showcase_varqec.py
 *.rtf
 .venv/
 archive/

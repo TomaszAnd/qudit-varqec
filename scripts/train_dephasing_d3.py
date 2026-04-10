@@ -14,9 +14,9 @@ from pennylane import numpy as pnp
 from pennylane.optimize import AdamOptimizer
 import numpy as np
 
-from src.error_sets import build_dephasing_error_sets
-from src.encoder import create_encoder
-from src.kl_loss_fast import (
+from src.legacy.ququart_pipeline import build_dephasing_error_sets
+from src.legacy.ququart_pipeline import create_encoder
+from src.loss import (
     kl_loss_minibatch, precompute_error_products_dedup, estimate_memory_mb,
     save_varqec_result
 )

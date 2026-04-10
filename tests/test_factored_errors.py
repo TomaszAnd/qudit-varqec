@@ -3,12 +3,12 @@ import numpy as np
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.error_sets import build_error_sets, build_dephasing_error_sets
-from src.error_sets_factored import (
+from src.legacy.ququart_pipeline import build_error_sets, build_dephasing_error_sets
+from src.legacy.ququart_pipeline import (
     build_error_sets_factored, build_dephasing_error_sets_factored,
     apply_factored_error, apply_factored_error_dag, factored_to_dense
 )
-from src.kl_loss_fast import _apply_factored_qml
+from src.loss import _apply_factored_qml
 
 
 class TestFactoredErrorSets:

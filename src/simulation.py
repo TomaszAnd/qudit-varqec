@@ -365,7 +365,7 @@ def make_correlated_dephasing_noise_fn(
     Returns:
         noise_fn(state, rng) -> noisy_state
     """
-    from src.trapped_ion_noise import (
+    from src.correlated_noise import (
         control_qudit_kraus, control_qudit_kraus_simplified,
         target_qudit_kraus, spectator_qudit_kraus
     )
@@ -459,7 +459,7 @@ def simulate_ler_with_detection(
         dict with 'detected_fraction', 'undetected_error_rate',
         'post_selected_fidelity', 'mean_raw_fidelity', 'n_shots'
     """
-    from src.decoders import detection_decoder
+    from src.simulation import detection_decoder
 
     K = code_states.shape[0]
     rng = np.random.default_rng(seed)
@@ -525,7 +525,7 @@ def simulate_ler_with_correction(
     Returns:
         dict with 'logical_error_rate', 'mean_fidelity', 'mean_raw_fidelity', 'n_shots'
     """
-    from src.decoders import lookup_table_decoder
+    from src.simulation import lookup_table_decoder
 
     K = code_states.shape[0]
     rng = np.random.default_rng(seed)
@@ -567,7 +567,7 @@ def simulate_decoder_comparison(
 
     Returns dict keyed by decoder name, each with 'ler' and 'mean_fidelity'.
     """
-    from src.decoders import (
+    from src.simulation import (
         projection_decoder, nearest_codeword_decoder, lookup_table_decoder
     )
 
@@ -647,5 +647,144 @@ def simulate_raw_fidelity(
     return {
         'mean_fidelity': float(np.mean(fidelities)),
         'std_fidelity': float(np.std(fidelities)),
+        'n_shots': n_shots,
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Decoders (merged from decoders.py)
+# ═══════════════════════════════════════════════════════════════════════
+
+def _build_decoder_projector(code_states: np.ndarray) -> np.ndarray:
+    """Build projector P = sum_k |psi_k><psi_k|."""
+    return code_states.T @ np.conj(code_states)
+
+
+def projection_decoder(noisy_state: np.ndarray,
+                       code_states: np.ndarray) -> np.ndarray:
+    """Project noisy state onto code space, renormalize."""
+    P = _build_decoder_projector(code_states)
+    projected = P @ noisy_state
+    norm = np.linalg.norm(projected)
+    if norm < 1e-15:
+        return noisy_state
+    return projected / norm
+
+
+def detection_decoder(noisy_state: np.ndarray,
+                      code_states: np.ndarray,
+                      detection_threshold: float = 0.1
+                      ) -> Tuple[Optional[np.ndarray], bool]:
+    """For distance-2: project, discard if projection norm^2 < threshold."""
+    P = _build_decoder_projector(code_states)
+    projected = P @ noisy_state
+    proj_norm_sq = np.real(np.vdot(projected, projected))
+    if proj_norm_sq < detection_threshold:
+        return None, True
+    return projected / np.sqrt(proj_norm_sq), False
+
+
+def nearest_codeword_decoder(noisy_state: np.ndarray,
+                             code_states: np.ndarray) -> np.ndarray:
+    """Return single codeword with maximum overlap (hard decision)."""
+    overlaps = np.abs(np.conj(code_states) @ noisy_state)**2
+    return code_states[np.argmax(overlaps)].copy()
+
+
+def lookup_table_decoder(noisy_state: np.ndarray,
+                         code_states: np.ndarray,
+                         error_ops: List[np.ndarray]) -> np.ndarray:
+    """Try E†|noisy> for each E, pick best projection onto code space."""
+    K = code_states.shape[0]
+    best_overlap = -1.0
+    best_correction = None
+    for E in error_ops:
+        error_states = (E @ code_states.T).T
+        overlap = sum(np.abs(np.vdot(error_states[k], noisy_state))**2 for k in range(K))
+        if overlap > best_overlap:
+            best_overlap = overlap
+            best_correction = E
+    if best_correction is None:
+        return noisy_state
+    corrected = best_correction.conj().T @ noisy_state
+    return projection_decoder(corrected, code_states)
+
+
+syndrome_based_decoder = lookup_table_decoder
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Factored LER simulation (for n >= 7 where dense E_corr is infeasible)
+# ═══════════════════════════════════════════════════════════════════════
+
+def _apply_factored_op(state, op, q, n_qudit, d):
+    """Apply a d×d operator to qudit q of an n-qudit state vector."""
+    shape = tuple([d] * n_qudit)
+    s = state.reshape(shape)
+    s = np.tensordot(op, s, axes=([1], [q]))
+    s = np.moveaxis(s, 0, q)
+    return s.reshape(-1)
+
+
+def simulate_ler_with_correction_factored(
+    code_states, noise_fn, single_errors, n_qudit, d,
+    n_shots=2000, seed=42
+):
+    """
+    LER simulation with factored single-qudit lookup-table decoder.
+
+    Avoids building dense d^n x d^n correction operators AND the dense
+    projector. Uses overlap with individual codewords instead:
+      overlap = sum_k |<psi_k|corrected>|^2
+
+    The correction set is {I} + {E_q for q in [n], E in single_errors}.
+
+    Returns dict with 'logical_error_rate', 'mean_fidelity', 'mean_raw_fidelity'.
+    """
+    K = code_states.shape[0]
+    rng = np.random.default_rng(seed)
+
+    logical_errors = 0
+    fids_raw = []
+    fids_corr = []
+
+    for shot in range(n_shots):
+        alpha = rng.standard_normal(K) + 1j * rng.standard_normal(K)
+        alpha /= np.linalg.norm(alpha)
+        logical_state = alpha @ code_states
+
+        noisy = noise_fn(logical_state, rng)
+        fids_raw.append(float(np.abs(np.vdot(logical_state, noisy)) ** 2))
+
+        # Overlap with code space via individual codewords (no dense projector)
+        def _code_overlap(state):
+            return sum(np.abs(np.vdot(code_states[k], state)) ** 2 for k in range(K))
+
+        best_overlap = _code_overlap(noisy)
+        best_corrected = noisy
+
+        for q in range(n_qudit):
+            for E in single_errors:
+                corrected = _apply_factored_op(noisy, E.conj().T, q, n_qudit, d)
+                overlap = _code_overlap(corrected)
+                if overlap > best_overlap:
+                    best_overlap = overlap
+                    best_corrected = corrected
+
+        # Project onto code space via codeword overlaps
+        coeffs = np.array([np.vdot(code_states[k], best_corrected) for k in range(K)])
+        projected = coeffs @ code_states
+        norm = np.linalg.norm(projected)
+        if norm > 1e-10:
+            projected /= norm
+        fid = float(np.abs(np.vdot(logical_state, projected)) ** 2)
+        fids_corr.append(fid)
+        if fid < 0.5:
+            logical_errors += 1
+
+    return {
+        'logical_error_rate': float(logical_errors / n_shots),
+        'mean_fidelity': float(np.mean(fids_corr)),
+        'mean_raw_fidelity': float(np.mean(fids_raw)),
         'n_shots': n_shots,
     }

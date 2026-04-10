@@ -6,15 +6,15 @@ warnings.filterwarnings("ignore")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from pennylane import numpy as pnp
-from src.error_sets import build_dephasing_error_sets
-from src.encoder import create_encoder
-from src.kl_loss_fast import (
+from src.legacy.ququart_pipeline import build_dephasing_error_sets
+from src.legacy.ququart_pipeline import create_encoder
+from src.loss import (
     kl_loss_fast, kl_loss_detection_minibatch,
     kl_loss_detection_diagonal_minibatch,
     kl_loss_detection_factored_minibatch,
     precompute_error_products, load_varqec_result,
 )
-from src.error_sets_factored import build_dephasing_error_sets_factored
+from src.legacy.ququart_pipeline import build_dephasing_error_sets_factored
 
 
 class TestDetectionLossEquivalence:
@@ -63,7 +63,7 @@ class TestDetectionDiagonal:
 
     def test_not_nan(self):
         """Loss should not be NaN or Inf."""
-        from src.correlated_error_sets import build_correlated_error_set
+        from src.correlated_noise import build_correlated_error_set
         encoder, _ = create_encoder(5, 4)
         gate_pairs = [(i, i + 1, 0, 1) for i in range(4)]
         E_det, _ = build_correlated_error_set(5, 4, gate_pairs, eta=0.95, n_max=2,

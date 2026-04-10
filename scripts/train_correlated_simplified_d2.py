@@ -14,9 +14,9 @@ from pennylane import numpy as pnp
 from pennylane.optimize import AdamOptimizer
 import numpy as np
 
-from src.encoder import create_encoder
-from src.correlated_error_sets import build_correlated_error_set
-from src.kl_loss_fast import kl_loss_diagonal_minibatch, save_varqec_result
+from src.legacy.ququart_pipeline import create_encoder
+from src.correlated_noise import build_correlated_error_set
+from src.loss import kl_loss_diagonal_minibatch, save_varqec_result
 
 
 def main():

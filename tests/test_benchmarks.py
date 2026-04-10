@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def test_error_set_construction_time():
     """Benchmark error set construction."""
-    from src.error_sets import build_error_sets, build_dephasing_error_sets
+    from src.legacy.ququart_pipeline import build_error_sets, build_dephasing_error_sets
 
     t0 = time.time()
     Ed, Ec = build_dephasing_error_sets(5, 3)
@@ -28,9 +28,9 @@ def test_error_set_construction_time():
 
 def test_kl_loss_single_eval_time():
     """Benchmark a single KL loss evaluation (dephasing, 2 layers)."""
-    from src.error_sets import build_dephasing_error_sets
-    from src.encoder import create_encoder
-    from src.kl_loss_fast import kl_loss_fast, precompute_error_products
+    from src.legacy.ququart_pipeline import build_dephasing_error_sets
+    from src.legacy.ququart_pipeline import create_encoder
+    from src.loss import kl_loss_fast, precompute_error_products
     from pennylane import numpy as pnp
 
     Ed, Ec = build_dephasing_error_sets(5, 3)
@@ -49,7 +49,7 @@ def test_kl_loss_single_eval_time():
 
 def test_correlated_error_set_time():
     """Benchmark correlated error set construction."""
-    from src.correlated_error_sets import build_correlated_error_set
+    from src.correlated_noise import build_correlated_error_set
 
     t0 = time.time()
     Ed, Ec = build_correlated_error_set(
@@ -69,7 +69,7 @@ def test_correlated_error_set_time():
 
 def test_kraus_generation_time():
     """Benchmark Kraus operator generation."""
-    from src.trapped_ion_noise import control_qudit_kraus, verify_kraus_completeness
+    from src.correlated_noise import control_qudit_kraus, verify_kraus_completeness
 
     for d in [3, 5, 7]:
         t0 = time.time()

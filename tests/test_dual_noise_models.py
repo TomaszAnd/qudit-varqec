@@ -11,13 +11,13 @@ import numpy as np
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.trapped_ion_noise import (
+from src.correlated_noise import (
     control_qudit_kraus, control_qudit_kraus_simplified,
     target_qudit_kraus, spectator_qudit_kraus,
     combined_gate_kraus, verify_kraus_completeness,
     _kraus_diagonal
 )
-from src.correlated_error_sets import build_correlated_error_set
+from src.correlated_noise import build_correlated_error_set
 
 
 class TestSimplifiedCoupling:

@@ -7,7 +7,7 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.trapped_ion_noise import (
+from src.correlated_noise import (
     control_qudit_kraus, target_qudit_kraus, spectator_qudit_kraus,
     verify_kraus_completeness, verify_matrix_kraus_completeness,
     _kraus_diagonal, subspace_depolarizing_kraus, combined_gate_kraus
@@ -117,7 +117,7 @@ class TestErrorProducts:
 
     def test_error_set_small_system(self):
         """Build error set for n=2, d=3 and check it's manageable."""
-        from src.correlated_error_sets import build_correlated_error_set
+        from src.correlated_noise import build_correlated_error_set
         gate_pairs = [(0, 1, 0, 1)]  # one gate between qudit 0 and 1, on levels 0,1
         E_det, E_corr = build_correlated_error_set(
             n_qudits=2, d=3, gate_pairs=gate_pairs, eta=0.95, n_max=2

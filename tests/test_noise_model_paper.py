@@ -24,7 +24,7 @@ from math import factorial, sqrt
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.trapped_ion_noise import (
+from src.correlated_noise import (
     _kraus_diagonal, control_qudit_kraus, target_qudit_kraus,
     spectator_qudit_kraus, subspace_depolarizing_kraus,
     combined_gate_kraus, verify_kraus_completeness,

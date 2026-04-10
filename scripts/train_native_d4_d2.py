@@ -1,0 +1,117 @@
+#!/usr/bin/env python3
+# Legacy: use scripts/train.py instead
+"""Train VarQEC ququart code ((3,4,2))_4 with native trapped-ion gates, distance 2."""
+import argparse
+import warnings
+warnings.filterwarnings("ignore")
+
+import time
+import os
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import pennylane as qml
+from pennylane import numpy as pnp
+from pennylane.optimize import AdamOptimizer
+import numpy as np
+
+from src.errors import build_native_error_set
+from src.encoder import create_native_encoder
+from src.loss import kl_loss_fast, save_varqec_result
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Train native ququart ((3,4,2))_4 code")
+    parser.add_argument("--n_steps", type=int, default=500)
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--n_layers", type=int, default=1)
+    parser.add_argument("--n_qudit", type=int, default=3)
+    parser.add_argument("--lr", type=float, default=0.05)
+    parser.add_argument("--force", action="store_true")
+    args = parser.parse_args()
+
+    D = 4  # ququarts
+    DISTANCE = 2
+    K = D
+    N_LAYERS = args.n_layers
+
+    E_det, E_corr = build_native_error_set(args.n_qudit, D, DISTANCE)
+    print(f"E_det={len(E_det)}, E_corr={len(E_corr)}")
+
+    encoder, connections, params_per_layer = create_native_encoder(args.n_qudit, D)
+    print(f"Params per layer: {params_per_layer}, connections: {connections}")
+
+    M_products = []
+
+    def loss_fn(params):
+        return kl_loss_fast(params, encoder, E_det, M_products, K, DISTANCE)
+
+    np.random.seed(args.seed)
+    theta = pnp.array(
+        np.random.uniform(0, 2 * np.pi, (N_LAYERS, params_per_layer)),
+        requires_grad=True
+    )
+
+    LR_SWITCH = args.lr / 5
+    opt = AdamOptimizer(args.lr)
+    lr_switched = False
+    losses = []
+
+    save_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                            "results", "params")
+    os.makedirs(save_dir, exist_ok=True)
+    save_path = os.path.join(save_dir,
+                             f"native_d4_dist{DISTANCE}_{N_LAYERS}layer_n{args.n_qudit}_seed{args.seed}.npz")
+
+    print(f"Training: native (({args.n_qudit},{K},{DISTANCE}))_4, {N_LAYERS} layer(s), "
+          f"seed={args.seed}, {args.n_steps} steps")
+    t0 = time.time()
+
+    for step in range(args.n_steps):
+        t_step = time.time()
+
+        theta, loss = opt.step_and_cost(loss_fn, theta)
+        loss_val = float(loss)
+
+        losses.append(loss_val)
+        dt = time.time() - t_step
+
+        if (not lr_switched) and loss_val < 0.1:
+            opt.stepsize = LR_SWITCH
+            lr_switched = True
+            print(f"  LR -> {LR_SWITCH}")
+
+        if step % 10 == 0 or step == args.n_steps - 1:
+            print(f"  step {step:3d} | loss={loss_val:.4e} | {dt:.1f}s/step")
+
+        if loss_val < 1e-6:
+            print(f"  CONVERGED at step {step}")
+            break
+
+        if step >= 100:
+            window_old = np.mean(losses[-100:-50])
+            window_new = np.mean(losses[-50:])
+            improvement = (window_old - window_new) / max(window_old, 1e-15)
+            if improvement < 0.05:
+                print(f"  PLATEAU at step {step}, loss={loss_val:.2e}")
+                break
+
+    total_time = time.time() - t0
+    print(f"  Total: {total_time:.1f}s ({total_time/60:.1f} min)")
+    print(f"  Final loss: {losses[-1]:.2e}")
+
+    if not args.force and os.path.exists(save_path):
+        existing = np.load(save_path, allow_pickle=True)
+        existing_steps = len(existing.get('losses', []))
+        if existing_steps > len(losses):
+            print(f"  Keeping existing result ({existing_steps} steps > {len(losses)} steps)")
+            return
+
+    save_varqec_result(save_path, theta, losses, "native_hardware_d4", DISTANCE, N_LAYERS,
+                       metadata={"K": K, "n_qudit": args.n_qudit, "d": D,
+                                 "seed": args.seed, "connections": connections,
+                                 "params_per_layer": params_per_layer})
+
+
+if __name__ == "__main__":
+    main()

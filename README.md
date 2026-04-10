@@ -1,116 +1,129 @@
 # VarQEC: Variational Quantum Error-Correcting Codes for Trapped-Ion Qudits
 
-Finding noise-adapted quantum error-correcting codes for ququart (d=4) systems
-using the VarQEC algorithm (Cao et al., arXiv:2204.03560).
+Noise-adapted QEC codes for trapped-ion qudit hardware using the VarQEC
+algorithm ([Cao et al., arXiv:2204.03560](https://arxiv.org/abs/2204.03560))
+with native gates (XY, Z, Molmer-Sorensen). Trained codes for d=3,4,5
+and n=3..8 with distance 2 or 3.
 
-## Overview
+## Headline result
 
-This project implements the VarQEC algorithm to discover ((5, 4, d))\_4 quantum
-error-correcting codes tailored to trapped-ion noise models from Meth et al.
-(arXiv:2310.12110v3, Appendix J).
-
-Five ququarts are encoded as 10 qubits (1024-dim Hilbert space). The variational
-circuit optimizes the Knill-Laflamme conditions to find codes that detect or
-correct errors from specific noise channels.
+The ((n,3,3))\_3 qutrit family shows monotonic loss scaling: **loss proportional to n^(-2.7)**
+across n=5,6,7,8. At p=0.2 the ((8,3,3))\_3 code achieves LER = 0.009,
+which is **4.2x better** than the [[5,1,3]]\_{Z\_3} stabilizer benchmark
+(LER = 0.038) under hardware-specific noise.
 
 ### Trained codes
 
-| Code | Noise model | Distance | Layers | Final loss | Status |
-|------|------------|----------|--------|------------|--------|
-| Dephasing d=2 | Pauli Z-type | 2 | 1 | ~1e-7 | Converged |
-| Dephasing d=3 | Pauli Z-type | 3 | 2 | ~6e-5 | Converged |
-| Depolarizing d=2 | Full Pauli | 2 | 2 | ~6e-5 | Converged |
-| Depolarizing d=3 | Full Pauli | 3 | 6 | ~6 | Partial |
-| Correlated d=2 | Trapped-ion (simplified) | 2 | 2 | ~2e-4 | Converged |
-| Correlated d=3 | Trapped-ion (simplified) | 3 | 3 | ~7e-4 | Converged |
+| Code | d | n | dist | Loss | LER@p=0.1 |
+|------|---|---|------|------|----------|
+| ((5,3,3))\_3 | 3 | 5 | 3 | 0.136 | 0.004 |
+| ((6,3,3))\_3 | 3 | 6 | 3 | 0.129 | 0.001 |
+| ((7,3,3))\_3 | 3 | 7 | 3 | 0.069 | 0.001 |
+| ((8,3,3))\_3 | 3 | 8 | 3 | 0.041 | **0.000** |
+| [[5,1,3]]\_{Z\_3} | 3 | 5 | 3 | 0 | 0.005 |
+
+Plus 10 distance-2 detection codes (d=3,4,5; n=3..8) and the first
+native-gate ququart distance-3 code ((5,4,3))\_4.
+
+See `results/code_summary.md` for the full table.
 
 ## Quick start
 
 ```bash
-cd qudit-varqec/
 pip install -r requirements.txt
 
-# Train all d=2 codes (~25 min total)
-bash scripts/run_all.sh
+# Reproduce the flagship ((8,3,3))_3 code (~80 min, PennyLane factored)
+python3 scripts/train.py --d 3 --n 8 --distance 3 --layers 8 --steps 2000 \
+    --backend pennylane --seeds 0
 
-# Train specific d=3 codes
-python3 scripts/train_dephasing_d3.py --n_steps 500
-python3 scripts/train_correlated_simplified_d3.py --n_steps 1000
-python3 scripts/train_depolarizing_d3.py --n_steps 1000 --n_layers 6
-```
+# Benchmark LER
+python3 scripts/benchmark_ler.py --code qutrit_n8_d3 --n_shots 3000
 
-### Analysis notebook
-
-```bash
-cd qudit-varqec/notebooks
-jupyter notebook showcase_varqec.ipynb
-```
-
-### Tests
-
-```bash
+# Run tests
 python3 -m pytest tests/ -v
 ```
 
 ## Repository structure
 
 ```
-├── scripts/
-│   ├── train_dephasing_d2.py           # 1 layer, ~3 min
-│   ├── train_dephasing_d3.py           # 2 layers, ~5 hrs
-│   ├── train_depolarizing_d2.py        # 2 layers, ~10 min
-│   ├── train_depolarizing_d3.py        # 6 layers, detection loss, ~3.5s/step
-│   ├── train_correlated_simplified_d2.py  # 2 layers, ~10 min
-│   ├── train_correlated_simplified_d3.py  # 3 layers, detection loss, ~1.1s/step
-│   └── run_all.sh                      # Run all d=2 scripts
-├── src/
-│   ├── pauli_ops.py                    # Pauli matrices for ququarts (15 non-identity)
-│   ├── error_sets.py                   # Dense Pauli error sets for detection/correction
-│   ├── error_sets_factored.py          # Memory-efficient factored errors (600 KB vs 37 GB)
-│   ├── gates.py                        # Parameterized gates (G_theta, entangling layers)
-│   ├── encoder.py                      # Variational quantum circuit encoder
-│   ├── kl_loss_fast.py                 # KL loss functions (detection + correction variants)
-│   ├── trapped_ion_noise.py            # Trapped-ion Kraus operators (Meth et al.)
-│   ├── correlated_error_sets.py        # Correlated noise error sets (diagonal)
-│   ├── logical_error_rate.py           # Monte Carlo LER simulation
-│   └── decoders.py                     # Projection, detection, lookup table decoders
-├── notebooks/
-│   ├── showcase_varqec.ipynb           # Main analysis notebook
-│   └── nb_utils.py                     # Notebook helper functions
-├── tests/                              # pytest suite (124 tests)
-├── results/                            # Trained parameters and plots
-├── .gitignore
-├── README.md
-└── requirements.txt
+src/                          Native trapped-ion pipeline
+  gates.py                    XY, Z, MS, CSUM, CSUB, light-shift (any d)
+  encoder.py                  PennyLane encoder (QNode d=3, manual d>3)
+  errors.py                   Hardware error basis, closure, ErrorModel
+  loss.py                     KL detection loss (Eq. 16)
+  simulation.py               Monte Carlo LER + decoders (dense + factored)
+  correlated_noise.py         Meth et al. Kraus operators
+  jax_backend.py              JAX scan encoder + scan loss + training
+  catalog.py                  Code loading, [[5,1,3]]_Z_q benchmark
+  analysis.py                 KL residuals, weight enumerators, entropy
+  legacy/
+    ququart_pipeline.py       Old abstract-gate pipeline (6 codes)
+scripts/
+  train.py                    Unified training (JAX or PennyLane)
+  run_campaign.py             Batch campaign runner
+  benchmark_ler.py            LER benchmark CLI
+notebooks/
+  analyze_codes.py            Jupytext source for analysis notebook
+results/
+  params/                     Trained .npz files
+  simulations/                Cached LER sweeps
+  plots/                      Generated figures
+  code_summary.md             Summary table
+tests/                        242 tests
 ```
 
-## Key concepts
+## The loss function
 
-### Noise models
+Training optimizes the Knill-Laflamme detection loss (Eq. 16):
 
-- **Dephasing**: Only Z-type errors (3 diagonal Paulis per qudit)
-- **Depolarizing**: All 15 non-identity single-qudit Paulis
-- **Correlated (simplified)**: Trapped-ion noise from nearest-neighbor gate
-  interactions (Meth et al. Eq. J3), producing ~25k diagonal error operators
+    L = sum_E [ sum_{i<j} |<psi_i|E|psi_j>|^2 + (K/4) Var_i <psi_i|E|psi_i> ]
 
-### Loss functions
+The first term enforces off-diagonal KL conditions. The second (active
+for distance >= 3) enforces diagonal uniformity. Both terms use squared
+overlaps for smooth gradients with Adam.
 
-The KL loss enforces the Knill-Laflamme conditions variationally:
+### Error basis closure
 
-- **Detection-style loss** (Paper Eq. 16): Single sum over E\_det with both
-  off-diagonal and diagonal variance terms. O(|E\_det|). Used for d>=3.
-- **Correction-style loss**: Separate off-diagonal (E\_det) and diagonal variance
-  (E\_a†E\_b products) terms. O(|E\_corr|^2) for Term 2. Used for d=2 and dephasing d=3.
+Hardware errors {Z\_k, X\_{k,k+1}} do not form a group. Products like
+Z\_1 * X\_{01} produce operators outside the basis. For distance >= 3,
+`closed=True` augments E\_det with these cross-products (e.g. 181 -> 221
+for d=3, n=5). Without closure, training silently under-constrains the
+KL conditions.
 
-### Memory optimization
+## LER benchmarking
 
-Depolarizing d=3 has 2326 detection errors. Dense 1024x1024 matrices would
-require 37 GB. The factored representation stores each error as single-qudit
-operator pairs, reducing memory to ~600 KB.
+Per-qudit i.i.d. noise with probability p. Lookup-table decoder tries
+identity + each single-qudit correction and picks the best code-space
+overlap. Two implementations:
+
+- **Dense** (n <= 6): precomputed d^n x d^n correction operators
+- **Factored** (n >= 7): single-qudit tensordot, avoids dense matrices
+
+Each data point uses 3000 shots. Distance-2 codes use detection + post-selection.
+
+## Training backends
+
+| Backend | Speed (n=5, 10L) | Compile | Use case |
+|---------|------------------|---------|----------|
+| PennyLane autograd | 1.89 s/step | 0 | Small codes, analysis |
+| JAX scan+checkpoint | 0.21 s/step | ~3 min | Large codes (n <= 7) |
+| PennyLane factored | ~14 s/step | 0 | n >= 8 (JAX compile fails) |
+
+## Roadmap
+
+### Scientific
+- Distance-3 codes for d=4,5 (partially trained, needs more layers/seeds)
+- Distance-4 attempt: ((7,3,4))\_3
+- ((9,3,3))\_3 to extend n-scaling to 5 points
+- Correlated noise training (Meth et al. channel)
+
+### Engineering
+- Fix JAX factored scan compile for n >= 8
+- GPU training support
+- Unified minibatch for JAX backend
 
 ## References
 
-- Cao et al., "Quantum variational learning for quantum error-correcting codes",
-  [arXiv:2204.03560](https://arxiv.org/abs/2204.03560)
-- Meth et al., trapped-ion noise model,
-  [arXiv:2310.12110v3](https://arxiv.org/abs/2310.12110v3), Appendix J
+- Cao et al., [arXiv:2204.03560](https://arxiv.org/abs/2204.03560) -- VarQEC algorithm
+- Meth et al., [arXiv:2310.12110v3](https://arxiv.org/abs/2310.12110) -- Trapped-ion noise model (App. J)
+- Chau 1997, Rains 1997 -- [[5,1,3]]\_{Z\_q} benchmark code

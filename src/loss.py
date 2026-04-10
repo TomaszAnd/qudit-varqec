@@ -87,6 +87,18 @@ def precompute_error_products_dedup(E_corr):
     return M_products
 
 
+def _kl_overlap_loss(overlaps, K, distance, scale=1.0):
+    """Accumulate KL loss from an overlap matrix overlaps[i,j] = <psi_i|E|psi_j>."""
+    loss = 0.0
+    for i in range(K):
+        for j in range(i + 1, K):
+            loss = loss + scale * qml.math.abs(overlaps[i, j]) ** 2
+    if distance >= 3:
+        diag_vals = qml.math.stack([overlaps[k, k] for k in range(K)])
+        loss = loss + scale * (K / 4) * qml.math.real(qml.math.var(diag_vals))
+    return loss
+
+
 def kl_loss_fast(params, encoder_fn, E_det, M_products, K, distance):
     """
     Fast KL loss with precomputed error products and vectorized operations.
@@ -131,65 +143,6 @@ def kl_loss_fast(params, encoder_fn, E_det, M_products, K, distance):
 
     return loss
 
-
-def kl_loss_diagonal(params, encoder_fn, E_det_diags, K, distance):
-    """
-    LEGACY: Full (non-minibatch) diagonal KL loss. Use kl_loss_diagonal_minibatch
-    or kl_loss_detection_diagonal_minibatch instead.
-
-    KL loss for DIAGONAL error operators (stored as 1D vectors).
-
-    For diagonal error E = diag(v):
-        <psi_i|E|psi_j> = sum_k v[k] * conj(psi_i[k]) * psi_j[k]
-
-    This is O(dim) per inner product instead of O(dim^2) for dense matrices.
-    No dense matrices are ever created.
-
-    Memory: O(K x dim + n_errors x dim) instead of O(n_errors x dim^2)
-    For dim=1024, 400 diagonal errors: 400 x 1024 x 16 bytes = 6.5 MB
-    vs dense: 400 x 1024 x 1024 x 16 = 6.7 GB  (1000x less memory!)
-
-    Args:
-        params: variational parameters
-        encoder_fn: PennyLane QNode
-        E_det_diags: list of 1D arrays (diagonal of each error operator)
-        K: number of codewords
-        distance: code distance (only Term 1 for d=2)
-    """
-    code_states = qml.math.stack([encoder_fn(params, k) for k in range(K)])
-    # code_states shape: (K, dim)
-    loss = 0.0
-
-    # Term 1: off-diagonal
-    for v in E_det_diags:
-        # For diagonal E=diag(v): E|psi_j> = v * psi_j (element-wise)
-        # <psi_i|E|psi_j> = sum_k conj(psi_i[k]) * v[k] * psi_j[k]
-        v_tensor = qml.math.convert_like(v, code_states)
-        weighted_states = v_tensor[None, :] * code_states  # (K, dim)
-        # overlaps[i,j] = <psi_i|E|psi_j>
-        overlaps = qml.math.tensordot(
-            qml.math.conj(code_states), qml.math.transpose(weighted_states),
-            axes=[[1], [0]]
-        )
-        for i in range(K):
-            for j in range(i + 1, K):
-                loss = loss + qml.math.abs(overlaps[i, j]) ** 2
-
-    # Term 2: diagonal variance (only for distance >= 3)
-    # For diagonal errors, M = E_a^dag E_b is also diagonal: diag(conj(v_a) * v_b)
-    # Compute M products on the fly to avoid storing them
-    if distance >= 3:
-        for va in E_det_diags:
-            va_conj = np.conj(va)
-            for vb in E_det_diags:
-                m_diag = va_conj * vb  # diagonal of E_a^dag E_b
-                m_tensor = qml.math.convert_like(m_diag, code_states)
-                # <psi_k|M|psi_k> = sum_l m[l] * |psi_k[l]|^2
-                weighted = m_tensor[None, :] * code_states  # (K, dim)
-                vals = qml.math.sum(qml.math.conj(code_states) * weighted, axis=1)
-                loss = loss + (K / 4) * qml.math.var(vals)
-
-    return loss
 
 
 def kl_loss_diagonal_minibatch(params, encoder_fn, E_det_diags, K, distance,
@@ -345,74 +298,6 @@ def _apply_factored_qml(state, factors, n_qudits, d):
     return s
 
 
-def kl_loss_factored_minibatch(params, encoder_fn, E_det_factors, E_corr_factors,
-                                K, distance, n_qudits, dim_qudit,
-                                batch_fraction_det=0.1, batch_fraction_corr=0.1,
-                                rng=None):
-    """
-    LEGACY: Correction-based factored loss with quadratic E_a†E_b Term 2.
-    Use kl_loss_detection_factored_minibatch instead (same results, no E_a†E_b products).
-
-    KL loss where errors are stored in FACTORED form (list of single-qudit ops)
-    instead of full dim^n × dim^n matrices.
-
-    E_det_factors: list of lists, each inner list is [(qudit_idx, 4x4 matrix), ...]
-                   Empty list = identity.
-    E_corr_factors: same format.
-
-    Memory: O(n_errors × max_weight × d²) instead of O(n_errors × d^{2n})
-    For depolarizing d=3: ~600 KB instead of 37 GB.
-    """
-    if rng is None:
-        rng = np.random.default_rng()
-
-    code_states = qml.math.stack([encoder_fn(params, k) for k in range(K)])
-    loss = 0.0
-
-    n_det = len(E_det_factors)
-    n_sample_det = max(1, int(n_det * batch_fraction_det))
-    idx_det = rng.choice(n_det, n_sample_det, replace=False)
-    scale_det = n_det / n_sample_det
-
-    for i in idx_det:
-        factors = E_det_factors[i]
-        # Apply E to each codeword
-        E_codewords = qml.math.stack([
-            _apply_factored_qml(code_states[k], factors, n_qudits, dim_qudit)
-            for k in range(K)
-        ])  # (K, dim)
-        # Overlaps: <psi_i|E|psi_j>
-        overlaps = qml.math.tensordot(
-            qml.math.conj(code_states), qml.math.transpose(E_codewords), axes=[[1], [0]])
-        for ci in range(K):
-            for cj in range(ci + 1, K):
-                loss = loss + scale_det * qml.math.abs(overlaps[ci, cj]) ** 2
-
-    # Term 2: sample (a,b) pairs from E_corr, compute M = E_a†E_b on the fly
-    if distance >= 3 and len(E_corr_factors) > 0:
-        n_corr = len(E_corr_factors)
-        n_sample_a = max(1, int(n_corr * batch_fraction_corr))
-        n_sample_b = max(1, int(n_corr * batch_fraction_corr))
-        idx_a = rng.choice(n_corr, n_sample_a, replace=False)
-        idx_b = rng.choice(n_corr, n_sample_b, replace=False)
-        scale_m = (n_corr / n_sample_a) * (n_corr / n_sample_b)
-
-        for ia in idx_a:
-            factors_a = E_corr_factors[ia]
-            for ib in idx_b:
-                factors_b = E_corr_factors[ib]
-                # <psi_k|E_a†E_b|psi_k> = <E_a psi_k|E_b psi_k>
-                vals_list = []
-                for k in range(K):
-                    Ea_psi = _apply_factored_qml(code_states[k], factors_a, n_qudits, dim_qudit)
-                    Eb_psi = _apply_factored_qml(code_states[k], factors_b, n_qudits, dim_qudit)
-                    val = qml.math.sum(qml.math.conj(Ea_psi) * Eb_psi)
-                    vals_list.append(val)
-                vals = qml.math.stack(vals_list)
-                loss = loss + scale_m * (K / 4) * qml.math.var(vals)
-
-    return loss
-
 
 def kl_loss_detection_minibatch(params, encoder_fn, E_det, K, distance,
                                 batch_fraction=0.2, rng=None):
@@ -441,14 +326,7 @@ def kl_loss_detection_minibatch(params, encoder_fn, E_det, K, distance,
         E = E_det[idx]
         E_applied = qml.math.tensordot(E, qml.math.transpose(code_states), axes=1)
         overlaps = qml.math.tensordot(qml.math.conj(code_states), E_applied, axes=[[1], [0]])
-        # Off-diagonal
-        for i in range(K):
-            for j in range(i + 1, K):
-                loss = loss + scale * qml.math.abs(overlaps[i, j]) ** 2
-        # Diagonal variance (d≥3)
-        if distance >= 3:
-            diag_vals = qml.math.stack([overlaps[k, k] for k in range(K)])
-            loss = loss + scale * (K / 4) * qml.math.real(qml.math.var(diag_vals))
+        loss = loss + _kl_overlap_loss(overlaps, K, distance, scale)
 
     return loss
 
@@ -481,14 +359,7 @@ def kl_loss_detection_factored_minibatch(params, encoder_fn, E_det_factors, K, d
         ])
         overlaps = qml.math.tensordot(
             qml.math.conj(code_states), qml.math.transpose(E_codewords), axes=[[1], [0]])
-        # Off-diagonal
-        for ci in range(K):
-            for cj in range(ci + 1, K):
-                loss = loss + scale * qml.math.abs(overlaps[ci, cj]) ** 2
-        # Diagonal variance (d≥3)
-        if distance >= 3:
-            diag_vals = qml.math.stack([overlaps[k, k] for k in range(K)])
-            loss = loss + scale * (K / 4) * qml.math.real(qml.math.var(diag_vals))
+        loss = loss + _kl_overlap_loss(overlaps, K, distance, scale)
 
     return loss
 
@@ -520,14 +391,7 @@ def kl_loss_detection_diagonal_minibatch(params, encoder_fn, E_det_diags, K, dis
             qml.math.conj(code_states), qml.math.transpose(weighted_states),
             axes=[[1], [0]]
         )
-        # Off-diagonal
-        for i in range(K):
-            for j in range(i + 1, K):
-                loss = loss + scale * qml.math.abs(overlaps[i, j]) ** 2
-        # Diagonal variance (d≥3)
-        if distance >= 3:
-            diag_vals = qml.math.stack([overlaps[k, k] for k in range(K)])
-            loss = loss + scale * (K / 4) * qml.math.real(qml.math.var(diag_vals))
+        loss = loss + _kl_overlap_loss(overlaps, K, distance, scale)
 
     return loss
 

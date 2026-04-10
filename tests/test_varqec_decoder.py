@@ -5,7 +5,7 @@ import numpy as np
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.decoders import (
+from src.simulation import (
     projection_decoder, detection_decoder, syndrome_based_decoder,
     lookup_table_decoder, nearest_codeword_decoder
 )

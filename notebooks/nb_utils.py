@@ -3,13 +3,13 @@ import numpy as np
 import itertools
 import sys
 sys.path.insert(0, '..')
-from src.pauli_ops import single_qudit_paulis
+from src.legacy.ququart_pipeline import single_qudit_paulis
 
 
 def load_trained_code(noise_type, distance, n_layers, seed):
     """Load trained params from results/params/. Returns (losses, theta) or (None, None)."""
     import os
-    from src.kl_loss_fast import load_varqec_result
+    from src.loss import load_varqec_result
     from pennylane import numpy as pnp
     path = f"../results/params/{noise_type}_d{distance}_{n_layers}layer_seed{seed}.npz"
     if not os.path.exists(path):
@@ -25,7 +25,7 @@ def load_trained_code(noise_type, distance, n_layers, seed):
 def get_code_states(theta, n_qudits=5, dim_qudit=4):
     """Extract code state vectors from trained VarQEC parameters."""
     import numpy as np
-    from src.encoder import create_encoder
+    from src.legacy.ququart_pipeline import create_encoder
     K = dim_qudit
     encoder, _ = create_encoder(n_qudits, dim_qudit)
     code_states = np.zeros((K, dim_qudit**n_qudits), dtype=complex)
@@ -72,7 +72,7 @@ def kl_residuals_factored(code_states, E_det_factors, E_corr_factors, distance,
     Compute KL condition residuals using factored error representation.
     Same output as kl_residuals but avoids materializing dense d^n x d^n matrices.
     """
-    from src.error_sets_factored import apply_factored_error, apply_factored_error_dag
+    from src.legacy.ququart_pipeline import apply_factored_error, apply_factored_error_dag
     K = code_states.shape[0]
     max_off = 0.0
     for factors in E_det_factors:

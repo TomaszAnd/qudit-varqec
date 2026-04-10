@@ -5,7 +5,7 @@ import numpy as np
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.logical_error_rate import (
+from src.simulation import (
     build_code_projector, apply_diagonal_noise, apply_pauli_noise,
     code_space_fidelity, simulate_logical_error_rate,
     sweep_logical_error_rate, make_correlated_dephasing_noise_fn,

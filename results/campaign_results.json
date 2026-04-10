@@ -1,0 +1,47 @@
+[
+  {
+    "config": "d3_n4_dist2_1L",
+    "status": "error",
+    "note": "qutrit 4-qudit"
+  },
+  {
+    "config": "d3_n5_dist2_1L",
+    "status": "error",
+    "note": "qutrit 5-qudit det baseline"
+  },
+  {
+    "config": "d3_n6_dist2_1L",
+    "status": "error",
+    "note": "qutrit 6-qudit"
+  },
+  {
+    "config": "d3_n7_dist2_2L",
+    "status": "error",
+    "note": "qutrit 7-qudit det"
+  },
+  {
+    "config": "d3_n8_dist2_2L",
+    "status": "error",
+    "note": "qutrit 8-qudit det"
+  },
+  {
+    "config": "d4_n4_dist2_1L",
+    "status": "error",
+    "note": "ququart 4-qudit"
+  },
+  {
+    "config": "d4_n5_dist2_2L",
+    "status": "error",
+    "note": "ququart 5-qudit"
+  },
+  {
+    "config": "d5_n3_dist2_1L",
+    "status": "error",
+    "note": "ququint 3-qudit"
+  },
+  {
+    "config": "d5_n4_dist2_1L",
+    "status": "error",
+    "note": "ququint 4-qudit"
+  }
+]
