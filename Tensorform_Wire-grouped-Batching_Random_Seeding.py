@@ -285,7 +285,7 @@ def CSUM_gate(theta, level_j, level_k, d=3):
     # 4. Sandwich the ZZ interaction
     return I_Fjk_dag @ ZZ_interaction @ I_Fjk
 
-# Native Entangling MS Gate (Geometric Phase)
+# Native Entangling MS Gate (using ZZ instead of XX and YY)
 def entangling_MS_gate(theta, level_j, level_k, d=3):
     """
     Creates a ZZ-type geometric phase entanglement between two qudits
@@ -306,7 +306,7 @@ def entangling_MS_gate(theta, level_j, level_k, d=3):
     # exponential instantly by just exponentiating the diagonal elements
     return jnp.diag(jnp.exp(jnp.diag(exponent)))
 
-# Native Entangling LS Gate
+# Native Entangling LS Gate (actual LS gate using all levels)
 def entangling_LS_gate(theta, d=3):
     """
     JAX-native implementation of the Hrmo et al. global light-shift gate.
@@ -352,7 +352,7 @@ def get_params_per_layer(n_qutrit):
     # 5. MS Entangling Gates: 1 gate per connection (2 params each)
     n_ms_params = 2 * len(ring_connections)
 
-    params = n_xy_params + n_z_params + n_ls_params #+ n_csum_params #+ n_ms_params
+    params = n_xy_params + n_z_params + n_ms_params #+ n_csum_params #+ n_ls_params
 
     print(f"--- Layer Parameter Breakdown ---")
     print(f"Number of parameters Layer:")
@@ -406,16 +406,16 @@ def encoder(params, code_ind):
 
         # 3. Correlation Phase A: LS Ring Graph (20 params)
         # Builds the cyclic stabilizer correlations
-        for q1, q2 in ring_connections:
+        """for q1, q2 in ring_connections:
             qml.QutritUnitary(entangling_LS_gate(layer_p[param_idx], d=3), wires=[q1, q2])
-            param_idx += 1
+            param_idx += 1"""
 
         # 4. Correlation Phase B: MS Ring Graph (10 params)
         # Finishes geometric phase accumulation
-        """for q1, q2 in ring_connections:
+        for q1, q2 in ring_connections:
             qml.QutritUnitary(entangling_MS_gate(layer_p[param_idx], 0, 1), wires=[q1, q2])
             qml.QutritUnitary(entangling_MS_gate(layer_p[param_idx + 1], 1, 2), wires=[q1, q2])
-            param_idx += 2"""
+            param_idx += 2
 
         # 5. Fine-Tuning: Z-Gate Correction Layer (10 params)
         for q in range(N_QUTRIT):
@@ -510,9 +510,9 @@ def build_loss_func(E_det, M_prods, sample_fraction):
 # ==========================================
 n_layer = 2  # <-- SET YOUR DESIRED NUMBER OF LAYERS HERE
 STEPS = 15000  # Maximum steps per seed
-NUM_SEEDS = 100000  # How many different random initializations to race
+NUM_SEEDS = 100000  # How many different random initializations to race (took around 7 hours for 100k seeds)
 n_params = n_layer * PARAMS_PER_LAYER
-SAMPLE_FRAC = 0.02  # Evaluating 20% of errors per step
+SAMPLE_FRAC = 0.02  # Evaluating x% of errors per step (minimum is 30 errors/step -> 0.02 for (5,1,3))
 
 print("--- TRAINING SETUP ---")
 print(f"Physical Qutrits: {N_QUTRIT} | Logical Qutrits: {LOGICAL_QUTRIT}")
@@ -621,7 +621,7 @@ total_script_time = time.time() - script_start_time
 log_time(f"Total Script Runtime: {total_script_time / 60:.2f} minutes")
 
 
-# 1. Generate the logical basis states using your best parameters
+# 1. Generate the logical basis states using your best parameters for jupyter notebook
 """print("\nGenerating logical basis states...")
 logical_states = []
 for k in range(K):
