@@ -18,6 +18,7 @@ from __future__ import annotations
 import os, sys, time, json, argparse
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
+sys.path.insert(0, os.path.join(REPO, "scripts"))  # loss_split_helpers (sibling script)
 import numpy as np
 
 OUTDIR = os.path.join(REPO, "results", "best_practice_runs", "fig8_weighted")
@@ -33,13 +34,25 @@ def train_one(sampler, frac, args, log_every=25):
     import jax, jax.numpy as jnp, optax
     from src.seed_race import build_race
     from src.jax_backend import stratified_weights
-    from src.sampling.stratified_importance import make_stratified_importance_weights
+    from src.sampling.stratified_importance import (
+        make_stratified_importance_weights,
+        make_stratified_importance_weights_full_basis)
 
     (val_grad_fn, full_loss_fn, group_sizes, ppl, _,
      full_weights, sgw) = build_race(args.d, args.n, 3, args.layers,
                                      weighted=True, connectivity="all-to-all")
     total_ops = int(sum(group_sizes))
     budget = max(1, int(round(frac * total_ops)))
+    # full-basis-IS also samples the weight-1 sector -> needs the w1/w2 masks; it is
+    # the CHEAPEST paper strategy (~w1_budget+w2_budget op-EVs/step).
+    if sampler == "full_basis_is":
+        from loss_split_helpers import build_w1_w2_masks
+        from src.errors import ErrorModel
+        grouped = ErrorModel(d=args.d, n_qudit=args.n, distance=3,
+                             closed=True).build_grouped(verbose=False)
+        w1_mask, w2_mask = build_w1_w2_masks(grouped, args.d)
+        w1_budget = max(1, int(round(0.75 * frac * total_ops)))
+        w2_budget = max(1, int(round(frac * total_ops)) - w1_budget)
     theta = jax.random.uniform(jax.random.PRNGKey(args.seed), (args.layers, ppl),
                                minval=0.0, maxval=2 * np.pi)
     rng = np.random.default_rng(args.seed)
@@ -52,6 +65,10 @@ def train_one(sampler, frac, args, log_every=25):
             w = full_weights; cum_ev += total_ops
         elif sampler == "stratified":
             w = stratified_weights(group_sizes, frac, rng)
+            cum_ev += int(sum(int(np.count_nonzero(np.asarray(x))) for x in w))
+        elif sampler == "full_basis_is":
+            w = make_stratified_importance_weights_full_basis(
+                sgw, w1_mask, w2_mask, w1_budget, w2_budget, rng)
             cum_ev += int(sum(int(np.count_nonzero(np.asarray(x))) for x in w))
         else:  # importance
             w = make_stratified_importance_weights(sgw, budget, rng)
@@ -79,11 +96,15 @@ def main():
     ap.add_argument("--lr", type=float, default=0.05)
     args = ap.parse_args()
     os.makedirs(OUTDIR, exist_ok=True)
-    # (name, sampler, frac)
+    # (name, sampler, frac) — the 5 paper strategies. "importance-truncated" is not a
+    # separate run: it is the importance curve read at an earlier op-EV cutoff (trivial,
+    # done in the plotter), so 4 training configs cover all 5 strategies. full_basis_is
+    # (samples w1 too) is the CHEAPEST strategy and the strongest budget point.
     CONFIGS = [("full_batch", "full_batch", 1.0),
                ("stratified_0.2", "stratified", 0.2),
                ("importance_0.2", "importance", 0.2),
-               ("importance_0.35", "importance", 0.35)]
+               ("importance_0.35", "importance", 0.35),
+               ("full_basis_is_0.1", "full_basis_is", 0.1)]
     status = {"config": vars(args), "objective": "weighted (Meth, corrected)",
               "samplers": {}, "started": True}
     write_status(status)

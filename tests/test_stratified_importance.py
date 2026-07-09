@@ -104,3 +104,35 @@ def test_zero_weight_group_gets_zero():
                                             rng=np.random.default_rng(2))
     assert np.allclose(np.asarray(wt[0]), 0.0)
     assert float(np.asarray(wt[1]).sum()) > 0.0
+
+
+def test_full_basis_is_wires_with_meth_weights():
+    """B1: the full-basis-IS sampler (samples the weight-1 sector too) composes with
+    the CORRECTED Meth channel weights + the default-basis w1/w2 masks -- the path the
+    corrected Fig 8 uses for the cheapest strategy. Shapes align; realized op-EV budget
+    tracks w1_budget+w2_budget; estimator is unbiased for the full weighted loss."""
+    sys.path.insert(0, os.path.join(REPO, "scripts"))
+    from src.errors import ErrorModel
+    from src.meth_weights import compute_meth_group_weights
+    from loss_split_helpers import build_w1_w2_masks
+    d, n = 3, 5
+    grouped = ErrorModel(d=d, n_qudit=n, distance=3, closed=True).build_grouped(verbose=False)
+    sizes = [g['matrices'].shape[0] for g in grouped]
+    sgw, flat = compute_meth_group_weights(d, n, distance=3)
+    w1m, w2m = build_w1_w2_masks(grouped, d)
+    assert [len(np.asarray(m)) for m in w1m] == sizes  # masks align with basis
+    rng = np.random.default_rng(0)
+    w1b, w2b = 20, 25
+    # unbiasedness: average many single-draw estimates of Sum_i lambda_i f_i
+    f = np.concatenate([np.asarray(x) for x in sgw]) * 0 + rng.random(sum(sizes))
+    offs = np.concatenate([[0], np.cumsum(sizes)])
+    true = float(np.sum(flat * f))
+    ests, nz = [], []
+    for s in range(4000):
+        wt = make_stratified_importance_weights_full_basis(
+            sgw, w1m, w2m, w1b, w2b, np.random.default_rng(s))
+        wflat = np.concatenate([np.asarray(x) for x in wt])
+        ests.append(float(np.sum(wflat * f)))
+        nz.append(int(np.count_nonzero(wflat)))
+    assert abs(np.mean(ests) - true) < 0.05 * max(true, 1e-9) + 1e-6, (np.mean(ests), true)
+    assert np.mean(nz) <= w1b + w2b + 1  # realized op-EVs bounded by the budget

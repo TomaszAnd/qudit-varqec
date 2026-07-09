@@ -289,6 +289,25 @@ INVERTED (n=5 high, n=9 ~0); the weighted objective does not invert because it i
 uniformly easy. **Recommendation for the campaign / Fig 8: run 1 seed + weighted
 importance sampling, no racing.**
 
+### B2 — verdict on YIELD + spread, not survivor-spread alone
+
+The NO-GO above rested on the survivors' floor-spread. That is only sound if there are
+no FAILED seeds (a failed seed is exactly what racing would prune). Re-analysing the
+on-disk `weighted_race_test` data on all three axes:
+
+| code | seed YIELD (converged / N) | floor-spread (std/mean, max/min) | per-seed op-EVs (Arm A) | Arm B op-EVs->1st cert |
+|---|---|---|---|---|
+| ((5,3,3))_3 | **5 / 5** | 0.027, 1.07 | ~45,569 (tight) | 51,778 (~1 seed) |
+| ((9,3,3))_3 | **3 / 3** | 0.041, 1.10 | ~57,647 (tight) | 59,568 (~1 seed) |
+
+**Yield is 100% at both scales** — every seed reaches a near-perfect weighted code
+(n=5 ~3.5e-4, n=9 ~7e-6), so there are **no losing seeds for racing to mercy-prune**.
+Floor-spread is ≤10% (max/min) and the per-seed op-EV cost is tight (time-to-target
+spread low; Arm B certifies at ~one seed's cost). The verdict therefore rests on
+**yield + floor-spread + time-spread together**, all pointing the same way: **NO-GO,
+racing moot**. (If yield had been low with tight survivor-spread, racing COULD have
+helped by pruning failures — it is the 100% yield that closes that door here.)
+
 Consequence for Stage 3: the corrected-noise Fig 8 is reproduced with the samplers
 STRAIGHT (no racing overlay), documenting the above low-variance finding.
 
@@ -321,3 +340,30 @@ overlay: racing is moot on this objective (Stage 2, low seed variance).
 **Follow-ups (noted, not blocking):** (a) 3-seed median envelopes for publication
 error bands; (b) the two full-basis-IS sampler variants (need the w1/w2-mask path)
 for the complete 5-sampler set.
+
+### B1 — the 5 paper strategies for Fig 8 (completeness + axis)
+
+The corrected Fig 8 above ran **3 of the 5** paper sampling strategies (full-batch,
+stratified, importance). **None were dropped for being worse** — in the paper all five
+reach the same loss floor and differ only in op-EV COST; the point of the figure is the
+cost axis. The two not yet run:
+- **importance-truncated** — NOT a separate training run: it is the importance curve
+  read at an earlier op-EV cutoff (trivially recovered by the plotter), so it needs no
+  new training.
+- **full-basis-IS** — samples the weight-1 sector too (not just weight-2), so it is the
+  **CHEAPEST** strategy (~63 op-EVs/step) and the **strongest budget point** — the figure
+  is incomplete without it. It needs the weight-1 mask path.
+
+**Implemented (B1):** `full_basis_is` is now wired into `scripts/fig8_weighted_train.py`
+via `loss_split_helpers.build_w1_w2_masks` + `stratified_importance.make_stratified_
+importance_weights_full_basis`, composing with the corrected Meth channel weights on the
+default hardware closure basis. Unit-tested (`tests/test_stratified_importance.py::
+test_full_basis_is_wires_with_meth_weights`: masks align, estimator unbiased for the full
+weighted loss, realized op-EVs bounded by the budget). The full 5-strategy launch (with
+3-seed envelopes) is deferred to the publication campaign (see PUBLICATION_PLAN.md), NOT
+run here.
+
+**Axis fix:** Fig 8 must render the 5 NAMED strategies at their natural per-step budgets
+(full-batch ~|E_det|, stratified/importance ~frac·|E_det|, full-basis-IS ~63), on a
+cumulative-op-EV x-axis — not a single "fraction knob" sweep. The trainer logs cumulative
+op-EVs per strategy so the plotter places each curve at its true hardware cost.
