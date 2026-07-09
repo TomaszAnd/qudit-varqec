@@ -1,0 +1,9 @@
+=== R14-3b stratified-IS seed 2: ((9,3,3))_3 a2a 4L, budget 50 EVs/step ===
+  [r14-3b IS] step    0 | loss = 1.6981e-04
+  [r14-3b IS] step  200 | loss = 4.0315e-05
+  [r14-3b IS] step  400 | loss = 3.1737e-05
+  [r14-3b IS] step  600 | loss = 3.2822e-05
+  [r14-3b IS] step  800 | loss = 3.4933e-05
+  [r14-3b IS] step 1000 | loss = 3.2698e-05
+  [r14-3b IS] step 1099 | loss = 2.6940e-05
+  seed 2 done in 34069s; final=2.6940e-05, min=2.4499e-05; wrote /Users/tomas/PycharmProjects/PythonProject8/qudit/results/round14_scoping/r14_7a_hoeffding/d3_n9_dist3_4L_meth_physical_seed2.npz

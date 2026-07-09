@@ -1,0 +1,20 @@
+=== R14-3 full-batch seed 0: ((9,3,3))_3 a2a 4L, 684 op-EVs/step (no sampling) ===
+2026-05-27 11:01:04.207365: E external/xla/xla/service/slow_operation_alarm.cc:65] 
+********************************
+[Compiling module jit__lambda_] Very slow compile? If you want to file a bug, run with envvar XLA_FLAGS=--xla_dump_to=/tmp/foo and attach the results.
+********************************
+2026-05-27 11:06:18.817060: E external/xla/xla/service/slow_operation_alarm.cc:133] The operation took 7m14.619778s
+
+********************************
+[Compiling module jit__lambda_] Very slow compile? If you want to file a bug, run with envvar XLA_FLAGS=--xla_dump_to=/tmp/foo and attach the results.
+********************************
+  [r14-3 fullbatch] step    0 | loss = 1.6584e-04
+  [r14-3 fullbatch] step  200 | loss = 2.4016e-05
+  [r14-3 fullbatch] step  400 | loss = 2.0981e-05
+  [r14-3 fullbatch] step  600 | loss = 2.0649e-05
+  [r14-3 fullbatch] step  800 | loss = 2.0581e-05
+  [r14-3 fullbatch] step 1000 | loss = 2.0042e-05
+  [r14-3 fullbatch] step 1200 | loss = 1.9876e-05
+  [r14-3 fullbatch] step 1400 | loss = 1.9791e-05
+  [r14-3 fullbatch] step 1499 | loss = 1.9750e-05
+  seed 0 done in 29433s; final=1.9750e-05, min=1.9736e-05; wrote /Users/tomas/PycharmProjects/PythonProject8/qudit/results/round14_scoping/r14_3_fullbatch_meth/d3_n9_dist3_4L_meth_physical_seed0.npz

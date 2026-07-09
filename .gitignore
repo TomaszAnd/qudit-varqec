@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+
+# Test cache
+.pytest_cache/
+
+# Paper source is out of scope for this reproduction package
+latex/
+
+# Future / scratch training output must never mix with the published
+# params that back the paper figures (results/params, results/saved_params).
+results/best_practice_runs/
+
+# NOTE: the trained .npz params, simulations, and benchmark CSVs under
+# results/ ARE committed on purpose — they are the reproduction inputs for
+# the paper figures/tables. Do not add blanket results/ ignores.
+
+# Regenerated FIGURE/TABLE OUTPUTS (produced by running the documented
+# commands in REPRODUCE.md; regenerable, so not committed).
+results/plots/
+results/code_summary.md
+results/round14_scoping/r14_10_training_curves.png
+results/round14_scoping/r14_10_training_curves.pdf
+results/round14_scoping/r14_10_dim_scaling_curves.png
+results/round14_scoping/r14_10_dim_scaling_curves.pdf
+results/round14_scoping/r14_10_sampler_equivalence.png
+results/round14_scoping/r14_10_sampler_equivalence.pdf
+results/round14_scoping/r14_10_ler_vs_pphys.png
+results/round14_scoping/r14_10_ler_vs_pphys.pdf
+
+# Session-local (never published)
+docs/FOLLOWUP.md

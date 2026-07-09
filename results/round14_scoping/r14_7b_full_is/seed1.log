@@ -1,0 +1,11 @@
+=== R14-7b full-IS seed 1: ((9,3,3))_3 a2a 4L, w1_budget 12 + w2_budget 54 → realized 63 op-EVs/step (94k/seed) ===
+  [r14-7b full-IS] step    0 | loss = 1.4616e-04
+  [r14-7b full-IS] step  200 | loss = 3.8220e-05
+  [r14-7b full-IS] step  400 | loss = 3.3372e-05
+  [r14-7b full-IS] step  600 | loss = 3.0915e-05
+  [r14-7b full-IS] step  800 | loss = 3.2826e-05
+  [r14-7b full-IS] step 1000 | loss = 3.1311e-05
+  [r14-7b full-IS] step 1200 | loss = 2.7265e-05
+  [r14-7b full-IS] step 1400 | loss = 2.6066e-05
+  [r14-7b full-IS] step 1499 | loss = 3.0444e-05
+  seed 1 done in 44130s; final=3.0444e-05, min=2.4039e-05; wrote /Users/tomas/PycharmProjects/PythonProject8/qudit/results/round14_scoping/r14_7b_full_is/d3_n9_dist3_4L_meth_physical_seed1.npz

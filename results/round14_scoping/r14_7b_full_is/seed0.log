@@ -1,0 +1,20 @@
+=== R14-7b full-IS seed 0: ((9,3,3))_3 a2a 4L, w1_budget 12 + w2_budget 54 → realized 63 op-EVs/step (94k/seed) ===
+2026-05-28 13:12:51.989322: E external/xla/xla/service/slow_operation_alarm.cc:65] 
+********************************
+[Compiling module jit__lambda_] Very slow compile? If you want to file a bug, run with envvar XLA_FLAGS=--xla_dump_to=/tmp/foo and attach the results.
+********************************
+2026-05-28 13:12:54.597403: E external/xla/xla/service/slow_operation_alarm.cc:133] The operation took 2m2.614078s
+
+********************************
+[Compiling module jit__lambda_] Very slow compile? If you want to file a bug, run with envvar XLA_FLAGS=--xla_dump_to=/tmp/foo and attach the results.
+********************************
+  [r14-7b full-IS] step    0 | loss = 1.7062e-04
+  [r14-7b full-IS] step  200 | loss = 4.4445e-05
+  [r14-7b full-IS] step  400 | loss = 4.0539e-05
+  [r14-7b full-IS] step  600 | loss = 3.3627e-05
+  [r14-7b full-IS] step  800 | loss = 2.3826e-05
+  [r14-7b full-IS] step 1000 | loss = 2.8353e-05
+  [r14-7b full-IS] step 1200 | loss = 3.1316e-05
+  [r14-7b full-IS] step 1400 | loss = 2.7556e-05
+  [r14-7b full-IS] step 1499 | loss = 2.8586e-05
+  seed 0 done in 44173s; final=2.8586e-05, min=2.3219e-05; wrote /Users/tomas/PycharmProjects/PythonProject8/qudit/results/round14_scoping/r14_7b_full_is/d3_n9_dist3_4L_meth_physical_seed0.npz

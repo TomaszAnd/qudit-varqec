@@ -1,0 +1,5 @@
+code,channel,axis_label,axis_value,decoder,ler_mean,ler_lo,ler_hi,n_shots,seed
+R12-a2a,b,eta,0.94,map,0.1635,0.146,0.18,2000,200940
+R14-3a/seed0,b,eta,0.94,map,0.1615,0.145,0.1775,2000,200940
+R14-3a/seed1,b,eta,0.94,map,0.1775,0.1615,0.1935125,2000,200940
+R14-3a/seed2,b,eta,0.94,map,0.1765,0.1609875,0.1925125,2000,200940

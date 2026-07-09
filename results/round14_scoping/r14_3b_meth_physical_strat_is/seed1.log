@@ -1,0 +1,20 @@
+=== R14-3b stratified-IS seed 1: ((9,3,3))_3 a2a 4L, budget 50 EVs/step ===
+2026-05-26 23:51:01.687431: E external/xla/xla/service/slow_operation_alarm.cc:65] 
+********************************
+[Compiling module jit__lambda_] Very slow compile? If you want to file a bug, run with envvar XLA_FLAGS=--xla_dump_to=/tmp/foo and attach the results.
+********************************
+2026-05-26 23:56:15.393277: E external/xla/xla/service/slow_operation_alarm.cc:133] The operation took 7m13.713035s
+
+********************************
+[Compiling module jit__lambda_] Very slow compile? If you want to file a bug, run with envvar XLA_FLAGS=--xla_dump_to=/tmp/foo and attach the results.
+********************************
+  [r14-3b IS] step    0 | loss = 1.3846e-04
+  [r14-3b IS] step  200 | loss = 3.5062e-05
+  [r14-3b IS] step  400 | loss = 3.2199e-05
+  [r14-3b IS] step  600 | loss = 3.0069e-05
+  [r14-3b IS] step  800 | loss = 4.1893e-05
+  [r14-3b IS] step 1000 | loss = 3.1103e-05
+  [r14-3b IS] step 1200 | loss = 3.1375e-05
+  [r14-3b IS] step 1400 | loss = 2.9418e-05
+  [r14-3b IS] step 1499 | loss = 3.3687e-05
+  seed 1 done in 28190s; final=3.3687e-05, min=2.3321e-05; wrote /Users/tomas/PycharmProjects/PythonProject8/qudit/results/round14_scoping/r14_3b_meth_physical_strat_is/d3_n9_dist3_4L_meth_physical_seed1.npz
